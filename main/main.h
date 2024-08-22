@@ -48,17 +48,25 @@ enum MenuState
     GRADIENT_MENU,
     RUN_MENU,
     SETTINGS_MENU,
-    CHANGE_SETTINGS
+    CHANGE_SETTINGS,
+    BITMAP_MENU,
+    USB_MODE,
+    STORAGE_MODE,
+    BITMAP_ANIMATION_MENU,
+    BITMAP_RUN_MENU
 };
 
 struct UIState
 {
-    uint32_t validationToken = 0xABCD1234;
+    uint32_t validationToken = 0xABCD1299;
     int mainMenuSelection = 0;
     int mainMenuPage = 0;
     int animationMenuSelection = 0;
     int gradientMenuSelection = 0;
     int settingsMenuSelection = 0;
+    int bitmapMenuSelection = 0;
+    int storageModeSelection = 0;
+    int bitmapAnimationMenuSelection = 0;
     int settings[4] = {255, 7000, 1, 255};
     MenuState currentState = START_SCREEN;
 };
@@ -90,10 +98,13 @@ void handleAnimationMenu();
 void handleGradientMenu();
 void handleSettingsMenu();
 void handleChangeSettingsMenu();
+void handleBitmapMenu();
+void handleUsbMode();
+void handleStorageMode();
+void handleBitmapAnimationMenu();
 void displayBrightnessLevel();
 void runMenu();
-void listDir();
-void displayBMP(const char *filename);
+void bitmap();
 
 // Declare global variables
 extern Adafruit_ST7789 tft;

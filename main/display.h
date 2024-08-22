@@ -15,7 +15,15 @@ void settingsMenu();
 void settingsMenuChangeSelection(int curIndex, int nextIndex);
 void changeSettingsMenu();
 void changeSettingsMenuChangeSelection(int curIndex, int nextIndex);
+void bitmapMenu();
+void bitmapMenuChangeSelection(int curIndex, int nextIndex);
+void usbMode();
+void storageMode();
+void storageModeChangeSelection(int curIndex, int nextIndex);
+void bitmapAnimationMenu();
+void bitmapAnimationMenuChangeSelection(int curIndex, int nextIndex);
 void drawMenuOption(int x, int y, int w, int h, int color, String text);
+void drawWrappedText(String text, int x, int y, int maxWidth, int maxHeight);
 
 struct Rectangle
 {

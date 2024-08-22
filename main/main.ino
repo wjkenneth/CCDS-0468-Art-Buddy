@@ -1,7 +1,8 @@
+#define FASTLED_RP2040_CLOCKLESS_M0_FALLBACK 0
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
-#define FASTLED_RP2040_CLOCKLESS_M0_FALLBACK 0
+#include <Adafruit_TinyUSB.h>
 #include <FastLED.h>
 #include <SPI.h>
 #include <EEPROM.h>
@@ -11,6 +12,7 @@
 #include "motor.h"
 #include "display.h"
 #include "controls.h"
+#include "bitmap.h"
 
 unsigned long last = 0;
 
@@ -22,6 +24,10 @@ CRGB leds[NUM_LEDS];
 
 // Initialize the UIState object
 UIState uiState;
+
+// Initialise USB
+Adafruit_USBD_Device USBHost;
+// TinyUSBHost myUSBHost;
 
 void setup()
 {
@@ -69,6 +75,7 @@ void setup()
     Serial.println("Failed to mount filesystem!");
     return;
   }
+  listDir();
 
   Serial.println("Filesystem mounted successfully!");
 
@@ -112,6 +119,20 @@ void loop()
   case CHANGE_SETTINGS:
     handleChangeSettingsMenu();
     break;
+  case BITMAP_MENU:
+    handleBitmapMenu();
+    break;
+  case USB_MODE:
+    // USBHost.begin(0);
+    // USBHost.task();
+    handleUsbMode();
+    break;
+  case STORAGE_MODE:
+    handleStorageMode();
+    break;
+  case BITMAP_ANIMATION_MENU:
+    handleBitmapAnimationMenu();
+    break;
   }
 }
 
@@ -130,7 +151,7 @@ bool loadUIState()
   UIState loadedState;
   EEPROM.get(EEPROM_ADDRESS, loadedState);
 
-  if (loadedState.validationToken == 0xABCD1234)
+  if (loadedState.validationToken == 0xABCD1299)
   {
     uiState = loadedState;
     return true;
@@ -149,6 +170,7 @@ void handleStartScreen()
 {
   handleChangeMenu(KEY_A, uiState.currentState, MAIN_MENU, mainMenu);
   handleChangeMenu(KEY_UP, uiState.currentState, SETTINGS_MENU, settingsMenu);
+  handleChangeMenu(KEY_DOWN, uiState.currentState, BITMAP_MENU, bitmapMenu);
   uiState.mainMenuSelection = 0;
   uiState.mainMenuPage = 0;
   uiState.animationMenuSelection = 0;
@@ -243,18 +265,6 @@ void handleSettingsMenu()
   handleChangeMenu(KEY_B, uiState.currentState, START_SCREEN, start);
 
   unsigned long currentTime = millis();
-
-  if (digitalRead(KEY_UP) == LOW)
-  {
-    if (currentTime - last > 200)
-    {
-      Serial.println("A pressed");
-      // spin_motor(uiState.settings[0], uiState.settings[1], uiState.setting[2]);
-      listDir();
-      displayBMP("/linear-gradient.bmp");
-      last = currentTime;
-    }
-  }
 }
 
 void handleChangeSettingsMenu()
@@ -270,6 +280,60 @@ void handleChangeSettingsMenu()
   handleChangeMenu(KEY_CTRL, uiState.currentState, CHANGE_SETTINGS, spinMotor);
 }
 
+void handleBitmapMenu()
+{
+  if (uiState.bitmapMenuSelection == 0)
+  {
+    handleChangeMenu(KEY_A, uiState.currentState, USB_MODE, usbMode);
+  }
+  else if (uiState.bitmapMenuSelection == 1)
+  {
+    handleChangeMenu(KEY_A, uiState.currentState, STORAGE_MODE, storageMode);
+  }
+
+  handleChangeMenu(KEY_B, uiState.currentState, START_SCREEN, start);
+
+  handleRight(uiState.bitmapMenuSelection, 1, bitmapMenuChangeSelection);
+  handleLeft(uiState.bitmapMenuSelection, bitmapMenuChangeSelection);
+}
+
+void handleUsbMode()
+{
+  handleChangeMenu(KEY_B, uiState.currentState, BITMAP_MENU, bitmapMenu);
+}
+
+void handleStorageMode()
+{
+  handleChangeMenu(KEY_A, uiState.currentState, BITMAP_ANIMATION_MENU, bitmapAnimationMenu);
+  handleChangeMenu(KEY_B, uiState.currentState, BITMAP_MENU, bitmapMenu);
+
+  handleUp(uiState.storageModeSelection, storageModeChangeSelection);
+  handleDown(uiState.storageModeSelection, fileCount - 1, storageModeChangeSelection);
+}
+
+void handleBitmapAnimationMenu()
+{
+  // Gradient Specific Controls
+
+  // Joystick Controls
+  handleRight(uiState.bitmapAnimationMenuSelection, 2, bitmapAnimationMenuChangeSelection);
+  handleLeft(uiState.bitmapAnimationMenuSelection, bitmapAnimationMenuChangeSelection);
+  handleUp(uiState.bitmapAnimationMenuSelection, bitmapAnimationMenuChangeSelection);
+  handleDown(uiState.bitmapAnimationMenuSelection, 2, bitmapAnimationMenuChangeSelection);
+  if (uiState.bitmapAnimationMenuSelection == 0)
+  {
+    handleChangeMenu(KEY_A, uiState.currentState, STORAGE_MODE, storageMode);
+  }
+  if (uiState.bitmapAnimationMenuSelection == 1)
+  {
+    handleChangeMenu(KEY_A, uiState.currentState, BITMAP_RUN_MENU, displayBMP);
+  }
+  if (uiState.bitmapAnimationMenuSelection == 2)
+  {
+    handleChangeMenu(KEY_A, uiState.currentState, STORAGE_MODE, deleteFile);
+  }
+}
+
 void displayBrightnessLevel()
 {
   FastLED.setBrightness(uiState.settings[0]);
@@ -281,7 +345,6 @@ void displayBrightnessLevel()
 
 void runMenu()
 {
-
   unsigned long startTime = millis();
   unsigned long currentTime = millis();
   unsigned long duration = uiState.settings[1];
@@ -323,86 +386,21 @@ void runMenu()
   saveUIState();
 }
 
-void listDir()
+void bitmap()
 {
-  File root = LittleFS.open("/", "r");
-  if (!root)
+  if (USBHost.mounted())
   {
-    Serial.println("Failed to open root directory");
-    return;
+    // Get the device descriptor
+    Serial.println("Mounted USB Device");
+    tft.setCursor(15, 50);
+    tft.setTextSize(1);
+    tft.print("Connected");
   }
-  if (!root.isDirectory())
+  else
   {
-    Serial.println("Root is not a directory");
-    return;
+    Serial.println("USB Device not mounted");
+    tft.setCursor(15, 50);
+    tft.setTextSize(1);
+    tft.print("Not Connected");
   }
-
-  File file = root.openNextFile();
-  while (file)
-  {
-    if (file.isDirectory())
-    {
-      Serial.print("DIR : ");
-      Serial.println(file.name());
-    }
-    else
-    {
-      Serial.print("FILE: ");
-      Serial.print(file.name());
-      Serial.print("  SIZE: ");
-      Serial.println(file.size());
-    }
-    file = root.openNextFile();
-  }
-}
-
-void displayBMP(const char *filename)
-{
-  File bmpFile = LittleFS.open(filename, "r");
-
-  if (!bmpFile)
-  {
-    Serial.println("Failed to open BMP file");
-    return;
-  }
-
-  bmpFile.seek(18);
-  int width;
-  bmpFile.read((uint8_t *)&width, 4);
-
-  bmpFile.seek(22);
-  int height;
-  bmpFile.read((uint8_t *)&height, 4);
-
-  // Calculate row size (including padding)
-  int rowSize = ((width * 3 + 3) & ~3);
-
-  // Calculate expected pixel data size
-  int pixelDataSize = rowSize * height;
-
-  // Get the total file size
-  int fileSize = bmpFile.size();
-
-  // Calculate the header size
-  int headerSize = fileSize - pixelDataSize;
-
-  // Reading the file column by column
-  for (int col = 0; col < width + 0; col++)
-  {
-    for (int row = 0; row < height; row++)
-    {
-      int pos = headerSize + (height - 1 - row) * rowSize + col * 3;
-      bmpFile.seek(pos);
-
-      uint8_t bmpLine[3];
-      bmpFile.read(&bmpLine[0], 3);
-
-      leds[row] = CRGB(bmpLine[2], bmpLine[1], bmpLine[0]);
-    }
-
-    FastLED.show();
-    delay(20);
-  }
-
-  bmpFile.close();
 }

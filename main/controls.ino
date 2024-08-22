@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "main.h"
+#include "bitmap.h"
 
 const unsigned long DEBOUNCE_DELAY = 200;
 unsigned long lastDebounceTime = 0;
@@ -92,29 +93,50 @@ void handleDown(int &currentSelection, int maxSelection, void (*updateMenu)(int 
 
 void handleNextPage(int &currentPage, int &currentSelection, int maxPage, void (*updateMenu)())
 {
+    unsigned long currentTime = millis();
+
     if (digitalRead(KEY_B) == LOW && currentPage != maxPage)
     {
-        currentPage++;
-        currentSelection = 0;
-        updateMenu();
+        if (currentTime - lastDebounceTime > DEBOUNCE_DELAY)
+        {
+            currentPage++;
+            currentSelection = 0;
+            updateMenu();
+
+            lastDebounceTime = currentTime;
+        }
     }
 }
 
 void handlePreviousPage(int &currentPage, int &currentSelection, void (*updateMenu)())
 {
+    unsigned long currentTime = millis();
+
     if (digitalRead(KEY_A) == LOW && currentPage != 0)
     {
-        currentPage--;
-        currentSelection = 0;
-        updateMenu();
+        if (currentTime - lastDebounceTime > DEBOUNCE_DELAY)
+        {
+            currentPage--;
+            currentSelection = 0;
+            updateMenu();
+
+            lastDebounceTime = currentTime;
+        }
     }
 }
 
 void handleChangeMenu(int key, MenuState &currentState, MenuState newState, void (*updateMenu)())
 {
+    unsigned long currentTime = millis();
+
     if (digitalRead(key) == LOW)
     {
-        currentState = newState;
-        updateMenu();
+        if (currentTime - lastDebounceTime > DEBOUNCE_DELAY)
+        {
+            currentState = newState;
+            updateMenu();
+
+            lastDebounceTime = currentTime;
+        }
     }
 }
