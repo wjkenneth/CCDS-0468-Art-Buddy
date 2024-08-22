@@ -32,7 +32,7 @@ Flash Size: 2MB (Sketch: 1MB, FS: 1MB)
 
 USB Stack: Adafruit TinyUSB
 
-![tools](/images/tools.png)
+![tools](/images/Tools.png)
 
 ### Flashing 
 
