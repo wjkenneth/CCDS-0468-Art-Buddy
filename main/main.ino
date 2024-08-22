@@ -326,7 +326,7 @@ void handleBitmapAnimationMenu()
   }
   if (uiState.bitmapAnimationMenuSelection == 1)
   {
-    handleChangeMenu(KEY_A, uiState.currentState, BITMAP_RUN_MENU, displayBMP);
+    handleChangeMenu(KEY_A, uiState.currentState, BITMAP_RUN_MENU, runBitmapMenu);
   }
   if (uiState.bitmapAnimationMenuSelection == 2)
   {
@@ -384,6 +384,30 @@ void runMenu()
   uiState.currentState = ANIMATION_MENU;
   animationMenu();
   saveUIState();
+}
+
+void runBitmapMenu()
+{
+  // Display running animation
+  tft.fillScreen(ST77XX_RED);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(90, 60);
+  tft.print("Running");
+  tft.setCursor(85, 80);
+  tft.print("Animation");
+
+  FastLED.setBrightness(uiState.settings[0]);
+
+  // Run the selected animation
+  displayBMP();
+
+  stopMotor();
+  FastLED.clear();
+  FastLED.show();
+  uiState.currentState = BITMAP_ANIMATION_MENU;
+  bitmapAnimationMenu();
+  // saveUIState();
 }
 
 void bitmap()

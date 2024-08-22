@@ -5,6 +5,7 @@
 #include "main.h"
 #include "bitmap.h"
 #include "display.h"
+#include "motor.h"
 
 // Define file info array
 FileInfo files[MAX_FILES];
@@ -45,7 +46,8 @@ void deleteFile()
     {
         Serial.println(String(path) + " deleted successfully.");
         // List files again to verify deletion
-        fileCount = 0; // Reset fileCount
+        uiState.storageModeSelection = 0; // Reset selection
+        fileCount = 0;                    // Reset fileCount
         listDir();
     }
     else
@@ -89,11 +91,18 @@ void displayBMP()
     // Calculate delay
     int delayTime = uiState.settings[1] / width;
 
+    unsigned long startTime = millis();
+    unsigned long currentTime = millis();
+    unsigned long duration = uiState.settings[1];
+
     // Reading the file column by column
     for (int col = 0; col < width + 0; col++)
     {
         for (int row = 0; row < height; row++)
         {
+            currentTime = millis();
+            runMotor();
+
             int pos = headerSize + (height - 1 - row) * rowSize + col * 3;
             bmpFile.seek(pos);
 
@@ -101,13 +110,18 @@ void displayBMP()
             bmpFile.read(&bmpLine[0], 3);
 
             leds[row] = CRGB(bmpLine[2], bmpLine[1], bmpLine[0]);
+
+            if (currentTime - startTime > duration || digitalRead(KEY_B) == LOW)
+            {
+
+                bmpFile.close();
+                return;
+            }
         }
 
         FastLED.show();
         delay(delayTime);
     }
 
-    FastLED.clear();
-    FastLED.show();
     bmpFile.close();
 }

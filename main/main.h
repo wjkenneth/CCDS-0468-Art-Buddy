@@ -104,6 +104,7 @@ void handleStorageMode();
 void handleBitmapAnimationMenu();
 void displayBrightnessLevel();
 void runMenu();
+void runBitmapMenu();
 void bitmap();
 
 // Declare global variables
