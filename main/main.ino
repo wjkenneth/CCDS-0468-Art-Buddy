@@ -2,9 +2,9 @@
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
-#include <Adafruit_TinyUSB.h>
 #include <FastLED.h>
 #include <SPI.h>
+#include <SD.h>
 #include <EEPROM.h>
 #include <LittleFS.h>
 #include "main.h"
@@ -25,9 +25,9 @@ CRGB leds[NUM_LEDS];
 // Initialize the UIState object
 UIState uiState;
 
-// Initialise USB
-Adafruit_USBD_Device USBHost;
-// TinyUSBHost myUSBHost;
+// SD
+FileInfo sdFiles[MAX_FILES];
+int sdFileCount = 0;
 
 void setup()
 {
@@ -43,6 +43,54 @@ void setup()
   pinMode(KEY_LEFT, INPUT_PULLUP);
   pinMode(KEY_RIGHT, INPUT_PULLUP);
   pinMode(KEY_CTRL, INPUT_PULLUP);
+
+  SPI1.setRX(SD_MISO);
+  SPI1.setTX(SD_MOSI);
+  SPI1.setSCK(SD_SCLK);
+
+  Serial.print("Initializing SD card...");
+  if (!SD.begin(SD_CS, SPI1))
+  {
+    Serial.println("initialization failed!");
+  }
+  else
+  {
+    Serial.println("initialization done.");
+  }
+
+  File root = SD.open("/");
+  if (!root)
+  {
+    Serial.println("Failed to open directory");
+    return;
+  }
+
+  if (!root.isDirectory())
+  {
+    Serial.println("Not a directory");
+    return;
+  }
+
+  File file = root.openNextFile();
+  while (file && sdFileCount < MAX_FILES)
+  {
+    Serial.println("loop");
+    // Ignore hidden files (those starting with a dot)
+    if (file.name()[0] != '.')
+    {
+      sdFiles[sdFileCount].name = file.name();
+      sdFiles[sdFileCount].size = file.size();
+      sdFiles[sdFileCount].isDirectory = file.isDirectory();
+      sdFileCount++;
+    }
+
+    file.close();               // Close the file after processing
+    file = root.openNextFile(); // Open the next file
+  }
+
+  root.close();
+
+  digitalWrite(SD_CS, HIGH);
 
   // Init TFT Display
   tft.init(135, 240);
@@ -123,8 +171,6 @@ void loop()
     handleBitmapMenu();
     break;
   case USB_MODE:
-    // USBHost.begin(0);
-    // USBHost.task();
     handleUsbMode();
     break;
   case STORAGE_MODE:
@@ -282,11 +328,12 @@ void handleChangeSettingsMenu()
 
 void handleBitmapMenu()
 {
-  if (uiState.bitmapMenuSelection == 0)
+  if(uiState.bitmapMenuSelection == 0)
   {
     handleChangeMenu(KEY_A, uiState.currentState, USB_MODE, usbMode);
+    
   }
-  else if (uiState.bitmapMenuSelection == 1)
+  else if(uiState.bitmapMenuSelection == 1)
   {
     handleChangeMenu(KEY_A, uiState.currentState, STORAGE_MODE, storageMode);
   }
@@ -314,7 +361,7 @@ void handleStorageMode()
 void handleBitmapAnimationMenu()
 {
   // Gradient Specific Controls
-
+  
   // Joystick Controls
   handleRight(uiState.bitmapAnimationMenuSelection, 2, bitmapAnimationMenuChangeSelection);
   handleLeft(uiState.bitmapAnimationMenuSelection, bitmapAnimationMenuChangeSelection);
@@ -412,19 +459,28 @@ void runBitmapMenu()
 
 void bitmap()
 {
-  if (USBHost.mounted())
+  for (int i = 0; i < sdFileCount; i++)
   {
-    // Get the device descriptor
-    Serial.println("Mounted USB Device");
-    tft.setCursor(15, 50);
-    tft.setTextSize(1);
-    tft.print("Connected");
+    float sizeInMB = sdFiles[i].size / 1024.0;
+    Serial.println(sdFiles[i].name + " " + String(sizeInMB, 1) + " KB"); // Draw menu options
   }
-  else
+
+  digitalWrite(TFT_CS, HIGH);
+
+  String filename = "a.bmp";
+  File file = SD.open(filename);
+  if (!file)
   {
-    Serial.println("USB Device not mounted");
-    tft.setCursor(15, 50);
-    tft.setTextSize(1);
-    tft.print("Not Connected");
+    Serial.print("Failed to open file: ");
+    Serial.println(filename);
+    digitalWrite(SD_CS, HIGH);
+    return;
   }
+
+  Serial.print("Successfully opened file: ");
+  Serial.println(filename);
+
+  file.close();
+
+  digitalWrite(SD_CS, HIGH);
 }

@@ -25,6 +25,12 @@
 #define TFT_SCLK 10
 #define TFT_BL 13
 
+// Define SD pins
+#define SD_CS 0
+#define SD_SCLK 10
+#define SD_MOSI 11
+#define SD_MISO 12
+
 // Define NeoPixel pins
 #define LED_PIN 22
 
